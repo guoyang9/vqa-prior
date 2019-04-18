@@ -1,3 +1,6 @@
 [submodule "resnet"]
 	path = resnet
 	url = https://github.com/Cyanogenoid/pytorch-resnet.git
+[submodule "vqa_eval"]
+	path = vqa_eval
+	url = https://github.com/fstrub95/VQA.git

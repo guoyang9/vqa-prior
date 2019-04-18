@@ -1,22 +1,23 @@
-import json, sys, os
+import os
+import sys
+import json
 sys.path.append(os.getcwd())
 
-from collections import Counter
 import itertools
-import argparse
+from collections import Counter
 
 import utils.config as config
 import utils.data as data
 import utils.utils as utils
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--train_set', default='train',
-                    choices=['train', 'train+val'],
-                    help='training set (train | train+val)')
-parser.add_argument('--version', default='v1',
-                    choices=['v1', 'v2'],
-                    help='dataset version type (v1 | v2)')
+def _get_file_(train=False, val=False, test=False, question=False, answer=False):
+    """ Get the correct question or answer file."""
+    _file = utils.path_for(train=train, val=val, test=test, 
+                            question=question, answer=answer)
+    with open(_file, 'r') as fd:
+        _object = json.load(fd)
+    return _object
 
 
 def extract_vocab(iterable, top_k=None, start=0):
@@ -25,11 +26,8 @@ def extract_vocab(iterable, top_k=None, start=0):
     """
     all_tokens = iterable if top_k else itertools.chain.from_iterable(iterable) 
     counter = Counter(all_tokens)
-    del counter['']
     if top_k:
         most_common = counter.most_common(top_k)
-
-        test = [i[1] for i in most_common]
         most_common = (t for t, c in most_common)
     else:
         most_common = counter.keys()
@@ -39,45 +37,22 @@ def extract_vocab(iterable, top_k=None, start=0):
     return vocab
 
 
-def extract_question(train=False, val=False):
-    questions = utils.path_for(question=True, 
-                               train=train,
-                               val=val,
-                               version=args.version)
-    with open(questions, 'r') as fd:
-        questions = json.load(fd)
-    questions = data.prepare_questions(questions)
-
-    return questions
-
-
-def extract_answer(train=False, val=False):
-    answers = utils.path_for(answer=True,
-                             train=train,
-                             val=val,
-                             version=args.version)
-    with open(answers, 'r') as fd:
-        answers = json.load(fd)
-    answers = data.prepare_multiple_answers(answers)
-
-    return answers
-
-
 def main():
-    global args
-    args = parser.parse_args()
+    questions = _get_file_(train=True, question=True)
+    answers = _get_file_(train=True, answer=True)
 
-    if args.train_set == 'train':
-        questions = extract_question(train=True)
-        answers = extract_answer(train=True)
-    else: # train+val
-        questions_train = extract_question(train=True)
-        questions_val = extract_question(val=True)
-        questions = itertools.chain(questions_train, questions_val)
+    questions = list(data.prepare_questions(questions))
+    answers = list(data.prepare_mul_answers(answers))
 
-        answers_train = extract_answer(train=True)
-        answers_val = extract_answer(val=True)
-        answers = answers_train + answers_val
+    if config.train_set == 'train+val':
+        questions_val = _get_file_(val=True, question=True)
+        answers_val = _get_file_(val=True, answer=True)
+
+        questions_val = list(data.prepare_questions(questions_val))
+        answers_val = list(data.prepare_mul_answers(answers_val))
+
+        questions = itertools.chain(questions, questions_val)
+        answers = answers + answers_val
   
     question_vocab = extract_vocab(questions, start=1) # leave 0 for non-found words
     answer_vocab = extract_vocab(answers, top_k=config.max_answers)
@@ -90,7 +65,7 @@ def main():
         'question_idx': question_idx_vocab,
         'answer_idx': answer_idx_vocab
     }
-    with open(getattr(config, 'vocabulary_path_{}'.format(args.version)), 'w') as fd:
+    with open(config.vocabulary_path, 'w') as fd:
         json.dump(vocabs, fd)
 
 

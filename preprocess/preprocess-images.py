@@ -1,5 +1,7 @@
-import os, sys
+import os
+import sys
 import h5py
+import argparse
 sys.path.append(os.getcwd())
 
 import torch
@@ -42,19 +44,27 @@ def create_coco_loader(*paths):
 
 
 def main():
-    os.environ["CUDA_VISIBLE_DEVICES"] = config.opt_gpu
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--gpu', 
+        default='0', 
+        help='the gpu device id')
+    args = parser.parse_args()
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
     cudnn.benchmark = True
 
     net = Net().cuda()
     net.eval()
 
-    loader = create_coco_loader(config.train_path, config.val_path, config.test_path)
+    loader = create_coco_loader(
+        config.train_image_path, 
+        config.val_image_path, 
+        config.test_image_path)
     features_shape = (
         len(loader.dataset),
         config.output_features,
         config.output_size,
-        config.output_size
-    )
+        config.output_size)
 
     with h5py.File(config.preprocessed_path, libver='latest') as fd:
         features = fd.create_dataset('features', shape=features_shape, dtype='float16')

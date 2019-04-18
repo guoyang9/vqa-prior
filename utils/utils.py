@@ -16,7 +16,7 @@ def batch_accuracy(predicted, true):
     return (agreeing * 0.3).clamp(max=1)
 
 
-def path_for(train=False, val=False, test=False, question=False, answer=False, version='v1'):
+def path_for(train=False, val=False, test=False, question=False, answer=False):
     assert train + val + test == 1
     assert question + answer == 1
     assert not (test and answer), 'loading answers from test split not supported'  
@@ -27,26 +27,25 @@ def path_for(train=False, val=False, test=False, question=False, answer=False, v
     else:
         split = 'test-dev2015'
     if question:
-        fmt = '{0}{1}_{2}_{3}_questions.json'
+        fmt = '{0}_{1}_{2}_questions.json'
     else:
-        fmt = '{0}{2}_{3}_annotations.json'
-    if version == 'v1':
-        s = fmt.format('', config.task, config.dataset, split)
-    else:
-        _version = version + '_'
-        s = fmt.format(_version, config.task, config.dataset, split)
-
-    return os.path.join(getattr(config, 'qa_path_{}'.format(version)), s)
+        fmt = '{1}_{2}_annotations.json'
+    s = fmt.format(config.task, config.dataset, split)
+   
+    return os.path.join(config.qa_path, s)
 
 
 class Tracker:
-    """ Keep track of results over time, while having access to monitors to display information about them. """
+    """ Keep track of results over time, 
+        while having access to monitors to display information about them. 
+    """
     def __init__(self):
         self.data = {}
 
     def track(self, name, *monitors):
-        """ Track a set of results with given monitors under some name (e.g. 'val_acc').
-            When appending to the returned list storage, use the monitors to retrieve useful information.
+        """ Track a set of results with given monitors 
+            under some name (e.g. 'val_acc'). When appending to the 
+            returned list storage, use the monitors to retrieve useful information.
         """
         l = Tracker.ListStorage(monitors)
         self.data.setdefault(name, []).append(l)

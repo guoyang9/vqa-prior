@@ -1,10 +1,9 @@
-import os, sys
-import re, json
+import os
+import sys
+import json
 import math
 
-sys.path.append('../')
-from utils.data import process_punctuation
-from utils.data import processDigitArticle
+import utils.data as data
 
 
 def eval(result, annotations, qta):
@@ -19,12 +18,12 @@ def eval(result, annotations, qta):
 
 	annotation = []
 
-	result = [{'question_id': qa_pair['question_id'], 'answer': processDigitArticle(
-							process_punctuation(qa_pair['answer']))} for qa_pair in result]
+	result = [{'question_id': qa_pair['question_id'], 'answer':
+				data.process_answer(qa_pair['answer'])} for qa_pair in result]
 	
 	for anntt in annotations['annotations']:
-		anntt['multiple_choice_answer'] = processDigitArticle(
-							process_punctuation(anntt['multiple_choice_answer']))
+		anntt['multiple_choice_answer'] = process_answer(
+							anntt['multiple_choice_answer'])
 		annotation.append(anntt)
 
 	answ_predict = cluster_answer(result, annotation, qta)
@@ -61,8 +60,8 @@ def cluster_answer(result, annotation, qta):
 		if question_type not in answ_predict:
 			answ_predict[question_type] = {}
 		if answ_res not in answs_qt:
-			print('Not found answer {0} in question type {1}.'.format(
-													answ_res, question_type))
+			# print('Not found answer {0} in question type {1}.'.format(
+			# 										answ_res, question_type))
 			continue # hard to quantify, let accuracy determine 
 
 		if answ_res not in answ_predict[question_type]:
@@ -101,3 +100,4 @@ def calculate_LP(answ_predict, qta):
 
 def sigmoid(x):
 	return 1 / (1+math.exp(-x))
+	
