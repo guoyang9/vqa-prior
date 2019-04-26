@@ -19,16 +19,18 @@ def batch_accuracy(predicted, true):
 def path_for(train=False, val=False, test=False, question=False, answer=False):
     assert train + val + test == 1
     assert question + answer == 1
-    assert not (test and answer), 'loading answers from test split not supported'  
     if train:
         split = 'train2014'
     elif val:
         split = 'val2014'
     else:
-        split = 'test-dev2015'
+        split = config.test_split
     if question:
         fmt = '{0}_{1}_{2}_questions.json'
     else:
+        if test:
+            # just load validation data in the test_answer=True , will be ignored anyway
+            split = 'val2014'
         fmt = '{1}_{2}_annotations.json'
     s = fmt.format(config.task, config.dataset, split)
    

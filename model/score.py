@@ -50,7 +50,7 @@ class SocreModule(nn.Module):
             elif self.relation == 'mul':
                 vqa = qv * a
             else:
-                raise ValueError('could not understand relation type.')
+                raise ValueError('cannot understand relation type.')
             return self.score_com(vqa)
 
 

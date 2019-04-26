@@ -33,8 +33,7 @@ def run(net, loader, optimizer, scheduler, tracker, train=False,
 	embedding = embedding.cuda()
 	loader = tqdm(loader, desc='{} Epoch {:03d}'.format(prefix, epoch), ncols=0)
 
-	loss_qv_tracker = tracker.track('{}_loss'.format(prefix), tracker_class(**tracker_params))
-	loss_score_tracker = tracker.track('{}_loss'.format(prefix), tracker_class(**tracker_params))
+	loss_tracker = tracker.track('{}_loss'.format(prefix), tracker_class(**tracker_params))
 	acc_qv_tracker = tracker.track('{}_acc'.format(prefix), tracker_class(**tracker_params))
 	acc_q_tracker = tracker.track('{}_acc'.format(prefix), tracker_class(**tracker_params))
 
@@ -51,14 +50,15 @@ def run(net, loader, optimizer, scheduler, tracker, train=False,
 			nll_q = -F.log_softmax(answer_q, dim=1)
 			loss_qv = (nll_qv * a / 10).sum(dim=1).mean() # only for correct answers
 			loss_q = (nll_q * a / 10).sum(dim=1).mean() # only for correct answers
+			loss = loss_qv + args.lambd * score_loss
 			acc_qv = utils.batch_accuracy(answer_vq, a).cpu()
 			acc_q = utils.batch_accuracy(answer_q, a).cpu()
 
 		if train:
 			scheduler.step()
 			optimizer.zero_grad()
-			loss = loss_qv + loss_q + args.lambd * score_loss
 			loss.backward()
+			nn.utils.clip_grad_norm_(net.parameters(), 0.5)
 			optimizer.step()
 		else:
 			# store information about evaluation of this minibatch
@@ -70,27 +70,24 @@ def run(net, loader, optimizer, scheduler, tracker, train=False,
 				question_ids.extend(q_id.view(-1).numpy())
 
 		if has_answers:
-			loss_qv_tracker.append(loss_qv.item())
-			loss_score_tracker.append(score_loss.item())
+			loss_tracker.append(loss.item())
 			acc_qv_tracker.append(acc_qv.mean())
 			acc_q_tracker.append(acc_q.mean())
 
 			fmt = '{:.4f}'.format
-			loader.set_postfix(loss_qv=fmt(loss_qv_tracker.mean.value),
-							loss_score=fmt(loss_score_tracker.mean.value), 
+			loader.set_postfix(loss=fmt(loss_tracker.mean.value),
 							acc_qv=fmt(acc_qv_tracker.mean.value), 
 							acc_q=fmt(acc_q_tracker.mean.value))
 
 	if not train:
-		answ = list(torch.cat(answ, dim=0))
+		answ = torch.cat(answ, dim=0).numpy()
 		if has_answers:
-			accs = list(torch.cat(accs, dim=0))
+			accs = torch.cat(accs, dim=0).numpy()
 
 			answers = [answer_idx_vocab[a] for a in answer_idxs] # true answers
 
 			for q, a in zip(question_ids, answers):
 				results_epoch.append({'question_id': int(q), 'answer': a})
-
 		return answ, accs, results_epoch
 
 
@@ -147,7 +144,7 @@ def main():
 	net = nn.DataParallel(net).cuda()
 	optimizer = optim.Adam([
 		p for p in net.parameters() if p.requires_grad], lr=config.initial_lr)
-	scheduler = lr_scheduler.ExponentialLR(optimizer, 0.5**(1 / config.lr_halflife))
+	scheduler = lr_scheduler.StepLR(optimizer, step_size=50000, gamma=0.4)
 
 	acc_val_best = 0.0
 	start_epoch = 0
@@ -182,10 +179,9 @@ def main():
 				'eval': {
 					'answers': r[0],
 					'accuracies': r[1],
-					'idx': r[2]
 				},
 			}
-			result_dict[i] = results_epoch
+			result_dict[i] = r[-1]
 
 			if config.train_set == 'train' and r[1].mean() > acc_val_best:
 				acc_val_best = r[1].mean()
@@ -194,12 +190,10 @@ def main():
 				torch.save(results, target_name+'.pth')
 				if i in range(config.epochs-5, config.epochs):
 					saved_for_test(val_loader, r, i)
-					torch.save(results, target_name+'{}.pth'.format(i))
-				
+					torch.save(results, target_name+'{}.pth'.format(i))		
 		else:
 			saved_for_test(val_loader, r)
 			break
-
 	if config.train_set == 'train':
 		with open('./results.json', 'w') as fd:
 			json.dump(result_dict, fd)

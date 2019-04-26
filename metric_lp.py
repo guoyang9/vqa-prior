@@ -4,6 +4,8 @@ import json
 import math
 
 import utils.data as data
+import utils.utils as utils
+import utils.config as config
 
 
 def eval(result, annotations, qta):
@@ -12,23 +14,17 @@ def eval(result, annotations, qta):
 		annotations: the validation annotation file
 		qta: answer distribution per question type
 	'''
-	result = json.load(open(result, 'r'))
-	annotations = json.load(open(annotations, 'r'))
-	qta = json.load(open(qta, 'r'))['qta']
-
 	annotation = []
-
 	result = [{'question_id': qa_pair['question_id'], 'answer':
-				data.process_answer(qa_pair['answer'])} for qa_pair in result]
+				data.process_answers(qa_pair['answer'])} for qa_pair in result]
 	
 	for anntt in annotations['annotations']:
-		anntt['multiple_choice_answer'] = process_answer(
+		anntt['multiple_choice_answer'] = data.process_answers(
 							anntt['multiple_choice_answer'])
 		annotation.append(anntt)
 
 	answ_predict = cluster_answer(result, annotation, qta)
 	LP = calculate_LP(answ_predict, qta)
-
 	return LP
 
 
@@ -71,9 +67,8 @@ def cluster_answer(result, annotation, qta):
 		else:
 			answ_predict[question_type][answ_res]['f'] += 1
 
-		if not answer_predict[question_type]:
+		if not answ_predict[question_type]:
 			answ_predict.pop(question_type)
-
 	return answ_predict
 
 
@@ -94,10 +89,32 @@ def calculate_LP(answ_predict, qta):
 			LPij = (1-Pij) * sigmoid(nij/Aj)
 			LPj.append(LPij)
 		LP.append(sum(LPj)/len(LPj))
-
 	return sum(LP)/len(LP)
 
 
 def sigmoid(x):
 	return 1 / (1+math.exp(-x))
-	
+
+
+def main():
+	results_path = sys.argv[1] # the result file
+	annotations_path = utils.path_for(val=True, answer=True)
+	qta_path = config.question_type_path
+
+	with open(results_path, 'r') as fd:
+		results = json.load(fd)
+	with open(annotations_path, 'r') as fd:
+		annotations = json.load(fd)
+	with open(qta_path, 'r') as fd:
+		qta = json.load(fd)['qta']
+
+	lp_best = 1.0
+	for k in results:
+		lp = eval(results[k], annotations, qta)
+		if lp < lp_best:
+			lp_best = lp
+	print("The best LP score is {:.4f}".format(lp_best))
+
+
+if __name__ == '__main__':
+	main()

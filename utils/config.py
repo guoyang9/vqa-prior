@@ -1,7 +1,7 @@
 main_data_path = '/raid/guoyangyang/vqa/'
 
 # training set
-train_set = 'train'
+train_set = 'train+val'
 assert train_set in ['train', 'train+val']
 
 # image paths
@@ -24,6 +24,7 @@ results = './results_test/results'
 # task type, we only consider open-ended
 task = 'OpenEnded'
 dataset = 'mscoco'
+test_split = 'test-dev2015'
 
 # preprocess config
 preprocess_batch_size = 16
@@ -33,10 +34,10 @@ output_features = 2048  # number of feature maps thereof
 central_fraction = 0.875  # only take this much of the centre when scaling and centre cropping
 
 # training config
-epochs = 50
+epochs = 6
 batch_size = 128
 initial_lr = 1e-3  # default Adam lr
-lr_halflife = 50000  # in iterations
-data_workers = 8
+lr_halflife = 40000  # in iterations
+data_workers = 4
 max_answers = 3000
 max_question_len = 15

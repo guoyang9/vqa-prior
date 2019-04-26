@@ -38,17 +38,17 @@ First of all, make all the data in the right position according to the config.py
 
 ## Model Training
 ```
-python main.py --name=kd-vqa --gpu=0
+python main.py --name=vqa-prior --gpu=0
 ```
 ## Model Test only
 ```
-python main.py --test --name=somename --gpu=0
+python main.py --test --name=vqa-prior --gpu=0
 ```
 
 ## Citation
 If you plan to use this code as part of your published research, we'd appreciate it if you could cite our paper:
 ```
-@InProceedings{prior,
+@Inproceedings{prior,
   author    = {Yangyang Guo, Zhiyong Cheng, Liqiang Nie, Yibing Liu, Yinglong Wang and Mohan Kankanhalli},
   title     = {Quantifying and Alleviating the Language Prior Problem in Visual Question Answering},
   booktitle = {SIGIR},

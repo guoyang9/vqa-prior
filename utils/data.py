@@ -32,7 +32,7 @@ def get_loader(train=False, val=False, test=False, need_test=False, version='v1'
         split += VQA(
             utils.path_for(train=train, val=val, test=test, question=True),
             utils.path_for(train=train, val=val, test=test, answer=True),
-            trainval_path if not test else test_path,
+            config.preprocessed_path,
             answerable_only=val,
             dummy_answers=test
         )
