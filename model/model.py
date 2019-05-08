@@ -59,7 +59,7 @@ class Net(nn.Module):
                 if m.bias is not None:
                     m.bias.data.zero_()
 
-    def forward(self, v, q, q_len, answ):
+    def forward(self, v, q, q_len, answ, test=None):
         q = self.text(q, list(q_len.data))
 
         v = v / (v.norm(p=2, dim=1, keepdim=True).expand_as(v) + 1e-8) # l2 normalization on depth dimension
@@ -70,9 +70,12 @@ class Net(nn.Module):
         combined = self.transform_qv(combined)
         q = self.transform_q(q)
 
-        score_vq = self.score(combined, answ)
-        score_q = self.score(q, answ)
-        pair_loss = self.pair_loss(score_vq, score_q)
+        if not test:
+            score_vq = self.score(combined, answ)
+            score_q = self.score(q, answ)
+            pair_loss = self.pair_loss(score_vq, score_q)
+        else:
+            pair_loss = 0.0
 
         answer_vq = self.classifier(combined)
         answer_q = self.classifier(q)

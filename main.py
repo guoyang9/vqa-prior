@@ -28,7 +28,7 @@ def run(net, loader, optimizer, scheduler, tracker, train=False,
 	else:
 		net.eval()
 		tracker_class, tracker_params = tracker.MeanMonitor, {}
-		answ, accs, answer_idxs, question_ids, results_epoch = ([] for _ in range(5))	
+		answ, accs, idxs, answer_idxs, question_ids, results_epoch = ([] for _ in range(6))	
 
 	embedding = embedding.cuda()
 	loader = tqdm(loader, desc='{} Epoch {:03d}'.format(prefix, epoch), ncols=0)
@@ -37,14 +37,14 @@ def run(net, loader, optimizer, scheduler, tracker, train=False,
 	acc_qv_tracker = tracker.track('{}_acc'.format(prefix), tracker_class(**tracker_params))
 	acc_q_tracker = tracker.track('{}_acc'.format(prefix), tracker_class(**tracker_params))
 
-	for v, q, a, q_id, q_len in loader:
+	for idx, v, q, a, q_id, q_len in loader:
 		v = v.cuda(async=True)
 		q = q.cuda(async=True)
 		a = a.cuda(async=True)
 		q_len = q_len.cuda(async=True)
 		embed_a = (embedding(a.long()) /10).sum(dim=1)
 
-		answer_vq, answer_q, score_loss = net(v, q, q_len, embed_a) 
+		answer_vq, answer_q, score_loss = net(v, q, q_len, embed_a, test=not has_answers) 
 		if has_answers:
 			nll_qv = -F.log_softmax(answer_vq, dim=1)
 			nll_q = -F.log_softmax(answer_q, dim=1)
@@ -68,6 +68,7 @@ def run(net, loader, optimizer, scheduler, tracker, train=False,
 			if has_answers:
 				accs.append(acc_qv.view(-1))
 				question_ids.extend(q_id.view(-1).numpy())
+			idxs.append(idx.view(-1).clone())
 
 		if has_answers:
 			loss_tracker.append(loss.item())
@@ -88,7 +89,27 @@ def run(net, loader, optimizer, scheduler, tracker, train=False,
 
 			for q, a in zip(question_ids, answers):
 				results_epoch.append({'question_id': int(q), 'answer': a})
-		return answ, accs, results_epoch
+
+		idxs = torch.cat(idxs, dim=0).numpy()
+		return answ, accs, results_epoch, idxs
+
+
+def saved_for_test(test_loader, result, epoch=None):
+    """ in test mode, save a results file in the format accepted by the submission server. """
+    answer_index_to_string = {a: s for s, a in test_loader.dataset.answer_to_index.items()}
+    results = []
+    for answer, index in zip(result[0], result[-1]):
+        answer = answer_index_to_string[answer.item()]
+        qid = test_loader.dataset.question_ids[index]
+        entry = {
+            'question_id': qid,
+            'answer': answer,
+        }
+        results.append(entry)
+    result_file = 'vqa_{}_{}_{}_{}_results.json'.format(
+        		config.task, config.dataset, config.test_split, epoch)
+    with open(result_file, 'w') as fd:
+        json.dump(results, fd)
 
 
 def main():
@@ -181,7 +202,7 @@ def main():
 					'accuracies': r[1],
 				},
 			}
-			result_dict[i] = r[-1]
+			result_dict[i] = r[2]
 
 			if config.train_set == 'train' and r[1].mean() > acc_val_best:
 				acc_val_best = r[1].mean()

@@ -172,7 +172,7 @@ class VQA(data.Dataset):
         # without shuffling in the dataloader, these will be in the order that they appear in the q and a json's.    
         q, q_len = self.questions[item]
         q_id = self.question_ids[item]
-        return v, q, a, q_id, q_len
+        return item, v, q, a, q_id, q_len
 
     def __len__(self):
         if self.answerable_only:
