@@ -192,7 +192,6 @@ def main():
 		if not args.test_only:
 			results = {
 				'epoch': i,
-				'acc_val_best': acc_val_best,
 				'name': name,
 				'model_state': net.state_dict(),
 				'optim_state': optimizer.state_dict(),
@@ -206,6 +205,7 @@ def main():
 
 			if config.train_set == 'train' and r[1].mean() > acc_val_best:
 				acc_val_best = r[1].mean()
+				results['acc_val_best'] = acc_val_best
 				torch.save(results, target_name+'.pth')
 			if config.train_set == 'train+val':
 				torch.save(results, target_name+'.pth')
